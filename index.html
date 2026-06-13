@@ -1,0 +1,481 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Flight Track Converter</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --ink:#1a1a1a; --muted:#8a8a8a; --line:#e4e4e4;
+    --bg:#fafafa; --card:#ffffff; --accent:#2563eb; --accent-light:#eef3fe;
+    --green:#16a34a; --red:#dc2626;
+  }
+  *{margin:0;padding:0;box-sizing:border-box;}
+  html,body{width:100%;overflow-x:hidden;}
+  body{
+    font-family:'Inter',system-ui,sans-serif;
+    background:var(--bg);color:var(--ink);
+    -webkit-font-smoothing:antialiased;
+  }
+  main{max-width:560px;width:100%;margin:0 auto;padding:64px 24px 80px;}
+
+  h1{font-size:22px;font-weight:700;letter-spacing:-0.01em;margin-bottom:6px;}
+  .subtitle{font-size:14px;color:var(--muted);margin-bottom:40px;line-height:1.5;}
+
+  /* Toggle */
+  .toggle{
+    display:flex;background:var(--card);border:1px solid var(--line);
+    border-radius:10px;padding:4px;margin-bottom:28px;
+  }
+  .toggle label{
+    flex:1;text-align:center;padding:10px 12px;border-radius:7px;
+    font-size:13px;font-weight:600;color:var(--muted);cursor:pointer;
+    transition:all 0.15s ease;
+  }
+  .toggle label.active{background:var(--accent);color:#fff;}
+  .toggle input{display:none;}
+  .toggle-hint{font-size:12px;color:var(--muted);margin-bottom:32px;line-height:1.5;}
+  .toggle-hint b{color:var(--ink);}
+
+  /* Drop zone */
+  .drop-zone{
+    display:block;
+    border:1.5px dashed var(--line);border-radius:12px;
+    padding:40px 20px;text-align:center;cursor:pointer;
+    transition:all 0.15s ease;background:var(--card);
+    margin-bottom:24px;width:100%;
+  }
+  .drop-zone:hover,.drop-zone.dragover{border-color:var(--accent);background:var(--accent-light);}
+  .drop-zone p{font-size:14px;font-weight:600;margin-bottom:4px;word-wrap:break-word;}
+  .drop-zone span{font-size:12px;color:var(--muted);word-wrap:break-word;}
+
+  /* Results */
+  .file-list{display:flex;flex-direction:column;gap:6px;margin-bottom:20px;}
+  .file-row{
+    display:flex;align-items:center;gap:10px;padding:11px 14px;
+    background:var(--card);border:1px solid var(--line);border-radius:8px;
+    font-size:13px;flex-wrap:wrap;
+  }
+  .fr-name{flex:1 1 140px;font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;min-width:100px;}
+  .fr-meta{font-size:12px;color:var(--muted);flex-shrink:0;white-space:nowrap;}
+  .fr-status{flex-shrink:0;font-size:12px;font-weight:600;}
+  .fr-status.ok{color:var(--green);}
+  .fr-status.err{color:var(--red);}
+  .fr-status.pending{color:var(--muted);}
+  .fr-error{font-size:12px;color:var(--red);flex-basis:100%;}
+
+  /* Download */
+  .download-btn{
+    width:100%;padding:13px;border:none;border-radius:8px;
+    background:var(--accent);color:#fff;font-family:'Inter',sans-serif;
+    font-size:14px;font-weight:600;cursor:pointer;
+    transition:opacity 0.15s ease;
+  }
+  .download-btn:disabled{opacity:0.3;cursor:not-allowed;}
+  .download-btn:not(:disabled):hover{opacity:0.9;}
+
+  /* How-to */
+  .howto{
+    margin-top:24px;font-size:13px;color:var(--muted);line-height:1.7;
+    display:none;
+  }
+  .howto.visible{display:block;}
+  .howto b{color:var(--ink);font-weight:600;}
+  .howto ol{margin-left:18px;margin-top:6px;}
+
+  @media(max-width:480px){
+    main{padding:40px 16px 60px;}
+  }
+</style>
+</head>
+<body>
+
+<main>
+  <h1>Flight Track Converter</h1>
+  <p class="subtitle">Convert ForeFlight or FlightRadar24 track files into a format ForeFlight can import.</p>
+
+  <div class="toggle">
+    <label class="active" id="card-g1000">
+      <input type="radio" name="goal" value="g1000" checked>
+      Track Log
+    </label>
+    <label id="card-kml">
+      <input type="radio" name="goal" value="kml">
+      Custom Map
+    </label>
+  </div>
+  <p class="toggle-hint" id="toggle-hint">
+    Outputs a <b>G1000 CSV</b> — for ForeFlight's flight logbook (More → Track Logs → Import).
+  </p>
+
+  <div class="drop-zone" id="drop-zone">
+    <p>Drop files here, or click to browse</p>
+    <span>.kml or .csv — multiple files OK</span>
+  </div>
+  <input type="file" id="file-input" accept=".kml,.csv,.txt" multiple style="display:none;">
+
+  <div class="file-list" id="file-list"></div>
+
+  <button class="download-btn" id="download-btn" disabled>Download</button>
+
+  <div class="howto" id="howto-g1000">
+    <b>To import:</b>
+    <ol>
+      <li>Send the file to your device (AirDrop, email, Files)</li>
+      <li>ForeFlight → More → Track Logs → Import → From G1000 (CSV File)</li>
+    </ol>
+  </div>
+  <div class="howto" id="howto-kml">
+    <b>To import:</b>
+    <ol>
+      <li>Open the file with ForeFlight (Share → ForeFlight)</li>
+      <li>More → Maps → Custom Content → Custom Map Layers → add it</li>
+    </ol>
+  </div>
+</main>
+
+<script>
+// ── Parsers ────────────────────────────────────────────────────────────────
+function splitCSVLine(line){
+  const cells=[];let cur='';let inQ=false;
+  for(let i=0;i<line.length;i++){
+    const ch=line[i];
+    if(ch==='"'){inQ=!inQ;}
+    else if(ch===','&&!inQ){cells.push(cur.trim());cur='';}
+    else{cur+=ch;}
+  }
+  cells.push(cur.trim());return cells;
+}
+
+function parseAnyFile(file, text){
+  const name=file.name.toLowerCase();
+  const looksLikeKML = name.endsWith('.kml') || text.includes('<kml') || text.includes('<Placemark>');
+  if(looksLikeKML){
+    if(text.includes('<gx:Track>')||text.includes('<gx:coord>')) return parseFFKML(text);
+    if(text.includes('<TimeStamp>')) return parseFR24KML(text);
+    throw new Error('No track data found in this KML.');
+  }
+  const lines=text.split(/\r?\n/).filter(l=>l.trim());
+  if(lines.length<2)throw new Error('CSV appears to be empty.');
+  let start=0;
+  while(start<lines.length&&lines[start].trim().startsWith('#'))start++;
+  const header=splitCSVLine(lines[start]).map(h=>h.trim());
+  if(header.includes('Position')&&header.includes('Timestamp')) return parseFR24CSV(lines,start,header);
+  return parseG1000CSV(lines,start,header);
+}
+
+function parseFFKML(text){
+  const whens=[...text.matchAll(/<when>(.*?)<\/when>/g)].map(m=>m[1]);
+  const coords=[...text.matchAll(/<gx:coord>(.*?)<\/gx:coord>/g)].map(m=>m[1]);
+  if(!whens.length||!coords.length) throw new Error('No gx:Track points found.');
+  let speedArr=null,courseArr=null,tailNumber=null;
+  const sm=text.match(/<SchemaData>([\s\S]*?)<\/SchemaData>/);
+  if(sm){
+    const sd=sm[1];
+    const getArr=name=>{
+      const r=new RegExp(`<gx:SimpleArrayData name="${name}">[\\s\\S]*?<\\/gx:SimpleArrayData>`);
+      const m=sd.match(r);if(!m)return null;
+      return[...m[0].matchAll(/<gx:value>(.*?)<\/gx:value>/g)].map(v=>parseFloat(v[1]));
+    };
+    speedArr=getArr('speed_kts');courseArr=getArr('course');
+  }
+  const tm=text.match(/<Data name="tailNumber">\s*<value>(.*?)<\/value>/);
+  if(tm&&tm[1].trim()) tailNumber=tm[1].trim();
+  const pts=[];let prev=null,prevTime=null;
+  for(let i=0;i<whens.length;i++){
+    const[lon,lat,altM]=coords[i].trim().split(/\s+/).map(Number);
+    const altFt=altM*3.28084;const t=new Date(whens[i]);
+    let speed=speedArr?Math.max(0,speedArr[i]):null;
+    let course=courseArr?courseArr[i]:null;
+    if(speed===null||course===null){
+      if(prev){const dtH=(t-prevTime)/3600000;const dx=haversineNM(prev[0],prev[1],lat,lon);
+        if(speed===null)speed=dtH>0?dx/dtH:0;
+        if(course===null||course<0)course=bearing(prev[0],prev[1],lat,lon);
+      }else{if(speed===null)speed=0;if(course===null)course=-1;}
+    }
+    pts.push([lat,lon,altFt,speed,course,whens[i]]);prev=[lat,lon];prevTime=t;
+  }
+  return{points:pts,tailNumber};
+}
+
+function parseFR24KML(text){
+  const placemarks=[...text.matchAll(/<Placemark>([\s\S]*?)<\/Placemark>/g)].map(m=>m[1]);
+  let tailNumber=null;
+  const dn=text.match(/<name>(.*?)<\/name>/);
+  if(dn){const m=dn[1].match(/([A-Z]\d?-?[A-Z0-9]{3,6})$/);if(m)tailNumber=m[1];}
+  const pts=[];
+  for(const pm of placemarks){
+    const tsM=pm.match(/<TimeStamp>\s*<when>(.*?)<\/when>/);
+    const cM=pm.match(/<Point>[\s\S]*?<coordinates>(.*?)<\/coordinates>/);
+    if(!tsM||!cM)continue;
+    const iso=tsM[1].replace('+00:00','Z');
+    const[lon,lat,alt0]=cM[1].split(',').map(Number);
+    let altFt=alt0||0,speed=0,course=-1;
+    const dM=pm.match(/<description>([\s\S]*?)<\/description>/);
+    if(dM){
+      const d=dM[1];
+      const aM=d.match(/Altitude:.*?(-?\d+(?:\.\d+)?)\s*ft/);
+      const sM=d.match(/Speed:.*?(-?\d+(?:\.\d+)?)\s*kt/);
+      const hM=d.match(/Heading:.*?(-?\d+(?:\.\d+)?)/);
+      if(aM)altFt=parseFloat(aM[1]);
+      if(sM)speed=parseFloat(sM[1]);
+      if(hM)course=parseFloat(hM[1]);
+    }
+    pts.push([lat,lon,altFt,speed,course,iso]);
+  }
+  if(!pts.length)throw new Error('No valid track points found.');
+  pts.sort((a,b)=>new Date(a[5])-new Date(b[5]));
+  return{points:pts,tailNumber};
+}
+
+function parseFR24CSV(lines,start,header){
+  const col=n=>header.indexOf(n);
+  const iUTC=col('UTC'),iPos=col('Position'),iAlt=col('Altitude'),iSpd=col('Speed'),iDir=col('Direction'),iTail=col('Callsign');
+  if(iUTC<0||iPos<0)throw new Error('Missing UTC or Position columns.');
+  const pts=[];let prev=null,prevTime=null,tailNumber=null;
+  for(const line of lines.slice(start+1).filter(l=>!l.trim().startsWith('#'))){
+    const cells=splitCSVLine(line);
+    const[latStr,lonStr]=(cells[iPos]||'').split(',');
+    const lat=parseFloat(latStr),lon=parseFloat(lonStr);
+    if(isNaN(lat)||isNaN(lon))continue;
+    const iso=cells[iUTC];const t=new Date(iso);
+    const alt=iAlt>=0?parseFloat(cells[iAlt])||0:0;
+    let speed=iSpd>=0?parseFloat(cells[iSpd]):null;
+    let course=iDir>=0?parseFloat(cells[iDir]):null;
+    if(speed===null||isNaN(speed)||course===null||isNaN(course)){
+      if(prev){const dtH=(t-prevTime)/3600000;const dx=haversineNM(prev[0],prev[1],lat,lon);
+        if(speed===null||isNaN(speed))speed=dtH>0?dx/dtH:0;
+        if(course===null||isNaN(course))course=bearing(prev[0],prev[1],lat,lon);
+      }else{if(speed===null||isNaN(speed))speed=0;if(course===null||isNaN(course))course=-1;}
+    }
+    if(!tailNumber&&iTail>=0&&cells[iTail])tailNumber=cells[iTail];
+    pts.push([lat,lon,alt,speed,course,iso]);prev=[lat,lon];prevTime=t;
+  }
+  if(!pts.length)throw new Error('No valid rows found.');
+  return{points:pts,tailNumber};
+}
+
+function parseG1000CSV(lines,start,header){
+  const col=n=>header.indexOf(n);
+  const iDate=col('Lcl Date'),iTime=col('Lcl Time'),iLat=col('Latitude'),iLon=col('Longitude');
+  const iAlt=col('AltMSL')>=0?col('AltMSL'):col('AltGPS');
+  const iSpd=col('GndSpd')>=0?col('GndSpd'):col('TAS');
+  const iCrs=col('TRK')>=0?col('TRK'):col('HDG');
+  if(iDate<0||iLat<0||iLon<0)throw new Error('Missing required columns.');
+  const pts=[];let prev=null,prevTime=null;
+  for(const line of lines.slice(start+1).filter(l=>!l.trim().startsWith('#'))){
+    const cells=splitCSVLine(line);
+    const lat=parseFloat(cells[iLat]),lon=parseFloat(cells[iLon]);
+    if(isNaN(lat)||isNaN(lon))continue;
+    const iso=`${cells[iDate]}T${cells[iTime]||'00:00:00'}Z`;const t=new Date(iso);
+    const alt=iAlt>=0?parseFloat(cells[iAlt])||0:0;
+    let speed=iSpd>=0?parseFloat(cells[iSpd]):null;
+    let course=iCrs>=0?parseFloat(cells[iCrs]):null;
+    if(speed===null||isNaN(speed)||course===null||isNaN(course)){
+      if(prev){const dtH=(t-prevTime)/3600000;const dx=haversineNM(prev[0],prev[1],lat,lon);
+        if(speed===null||isNaN(speed))speed=dtH>0?dx/dtH:0;
+        if(course===null||isNaN(course))course=bearing(prev[0],prev[1],lat,lon);
+      }else{if(speed===null||isNaN(speed))speed=0;if(course===null||isNaN(course))course=-1;}
+    }
+    pts.push([lat,lon,alt,speed,course,iso]);prev=[lat,lon];prevTime=t;
+  }
+  if(!pts.length)throw new Error('No valid rows found.');
+  return{points:pts,tailNumber:null};
+}
+
+// ── Geometry ───────────────────────────────────────────────────────────────
+function haversineNM(lat1,lon1,lat2,lon2){
+  const R=3440.065,p=Math.PI/180;
+  const a=Math.sin((lat2-lat1)*p/2)**2+Math.cos(lat1*p)*Math.cos(lat2*p)*Math.sin((lon2-lon1)*p/2)**2;
+  return 2*R*Math.asin(Math.sqrt(a));
+}
+function bearing(lat1,lon1,lat2,lon2){
+  const p=Math.PI/180,dL=(lon2-lon1)*p;
+  return(Math.atan2(Math.sin(dL)*Math.cos(lat2*p),Math.cos(lat1*p)*Math.sin(lat2*p)-Math.sin(lat1*p)*Math.cos(lat2*p)*Math.cos(dL))*180/Math.PI+360)%360;
+}
+
+// ── Exporters ──────────────────────────────────────────────────────────────
+const G1000_HEADER=' Lcl Date, Lcl Time, UTCOfst, AtvWpt,     Latitude,    Longitude,    AltB, BaroA,  AltMSL,   OAT,    IAS, GndSpd,    VSpd,  Pitch,   Roll,  LatAc, NormAc,   HDG,   TRK, volt1,  FQtyL,  FQtyR, E1 FFlow, E1 FPres, E1 OilT, E1 OilP, E1 MAP, E1 RPM, E1 CHT1, E1 CHT2, E1 CHT3, E1 CHT4, E1 EGT1, E1 EGT2, E1 EGT3, E1 EGT4,  AltGPS, TAS, HSIS,    CRS,   NAV1,   NAV2,    COM1,    COM2,   HCDI,   VCDI, WndSpd, WndDr, WptDst, WptBrg, MagVar, AfcsOn, RollM, PitchM, RollC, PichC, VSpdG, GPSfix,  HAL,   VAL, HPLwas, HPLfd, VPLwas';
+const G1000_TAIL=', , , , , , , , , , , , , , , , , , , , , , , , , , , , , , , , , , , , , , , , , , , , , , , , , , , ';
+function padL(v,w){const s=String(v);return s.length>=w?s:' '.repeat(w-s.length)+s;}
+
+function toG1000CSV(points){
+  const rows=[G1000_HEADER];
+  for(const[lat,lon,alt,speed,,iso]of points){
+    const cl=iso.replace('Z','');
+    const[date,tf]=cl.split('T');
+    const time=tf.split('.')[0];
+    rows.push(`${date}, ${time}, 00:00, , ${padL(lat.toFixed(6),12)}, ${padL(lon.toFixed(6),12)}, , , ${padL(Math.round(alt),7)}, , , ${padL(Math.round(Math.max(0,speed)),6)}${G1000_TAIL}`);
+  }
+  return rows.join('\n');
+}
+
+function toCleanKML(points,tailNumber){
+  const wc=points.map(p=>`                <when>${p[5]}</when>\n                <gx:coord>${p[1].toFixed(6)} ${p[0].toFixed(6)} ${(p[2]/3.28084).toFixed(1)}</gx:coord>`).join('\n                \n');
+  const sv=points.map(p=>`                    <gx:value>${Math.max(0,p[3]).toFixed(2)}</gx:value>`).join('\n                    \n');
+  const cv=points.map(p=>`                    <gx:value>${p[4].toFixed(2)}</gx:value>`).join('\n                    \n');
+  const first=points[0];
+  return`<?xml version="1.0" encoding="UTF-8"?>
+<kml xmlns="http://www.opengis.net/kml/2.2" xmlns:gx="http://www.google.com/kml/ext/2.2">
+    <Document>
+        <open>1</open><visibility>1</visibility>
+        <Style id="trackStyle">
+            <LineStyle><color>ffDB9034</color><width>4</width></LineStyle>
+            <PolyStyle><color>80DB9034</color></PolyStyle>
+        </Style>
+        <Placemark>
+            <name></name>
+            <styleUrl>#trackStyle</styleUrl>
+            <gx:Track>
+                <altitudeMode>absolute</altitudeMode>
+                <extrude>1</extrude>
+                <gx:interpolate>1</gx:interpolate>
+                
+${wc}
+                
+                <ExtendedData><SchemaData>
+                    <gx:SimpleArrayData name="speed_kts">
+                    ${sv}
+                    </gx:SimpleArrayData>
+                    <gx:SimpleArrayData name="course">
+                    ${cv}
+                    </gx:SimpleArrayData>
+                </SchemaData></ExtendedData>
+            </gx:Track>
+        </Placemark>
+        <Placemark>
+            <name>Start</name>
+            <Point><coordinates>${first[1].toFixed(6)},${first[0].toFixed(6)},${(first[2]/3.28084).toFixed(1)}</coordinates></Point>
+        </Placemark>
+        <ExtendedData>
+            <Data name="source"><displayName>Source</displayName><value>Flight Track Converter</value></Data>
+            <Data name="tailNumber"><value>${tailNumber||''}</value></Data>
+        </ExtendedData>
+    </Document>
+</kml>`;
+}
+
+// ── UI state ───────────────────────────────────────────────────────────────
+let outputs=[];
+let lastFiles=[];
+const cardG1000=document.getElementById('card-g1000');
+const cardKML=document.getElementById('card-kml');
+const howtoG1000=document.getElementById('howto-g1000');
+const howtoKML=document.getElementById('howto-kml');
+const toggleHint=document.getElementById('toggle-hint');
+
+function currentGoal(){ return document.querySelector('input[name="goal"]:checked').value; }
+
+function updateToggle(){
+  const goal=currentGoal();
+  cardG1000.classList.toggle('active',goal==='g1000');
+  cardKML.classList.toggle('active',goal==='kml');
+  toggleHint.innerHTML = goal==='kml'
+    ? 'Outputs an <b>FF Custom Map KML</b> — a clean route overlay (More → Maps → Custom Content).'
+    : 'Outputs a <b>G1000 CSV</b> — for ForeFlight\u2019s flight logbook (More → Track Logs → Import).';
+  if(lastFiles.length) processFiles(lastFiles);
+}
+[cardG1000,cardKML].forEach(card=>{
+  card.addEventListener('click',()=>{
+    card.querySelector('input').checked=true;
+    updateToggle();
+  });
+});
+
+// ── Batch processing ───────────────────────────────────────────────────────
+function addRow(id,name){
+  const row=document.createElement('div');
+  row.className='file-row';
+  row.id=`row-${id}`;
+  row.innerHTML=`
+    <span class="fr-name">${name}</span>
+    <span class="fr-meta" id="meta-${id}"></span>
+    <span class="fr-status pending" id="st-${id}">…</span>
+    <span class="fr-error" id="err-${id}"></span>`;
+  document.getElementById('file-list').appendChild(row);
+}
+
+function readText(file){
+  return new Promise((res,rej)=>{const r=new FileReader();r.onload=e=>res(e.target.result);r.onerror=rej;r.readAsText(file);});
+}
+
+async function processFiles(files){
+  lastFiles=files;
+  outputs=[];
+  document.getElementById('file-list').innerHTML='';
+
+  const goal=currentGoal();
+  let ok=0;
+
+  for(let i=0;i<files.length;i++){
+    const file=files[i];
+    const id=`f${i}`;
+    addRow(id,file.name);
+    const stEl=document.getElementById(`st-${id}`);
+    const metaEl=document.getElementById(`meta-${id}`);
+    const errEl=document.getElementById(`err-${id}`);
+
+    try{
+      const text=await readText(file);
+      const result=parseAnyFile(file,text);
+
+      let content,ext;
+      if(goal==='kml'){content=toCleanKML(result.points,result.tailNumber);ext='_track.kml';}
+      else{content=toG1000CSV(result.points);ext='_G1000.csv';}
+      outputs.push({filename:file.name.replace(/\.(kml|csv|txt)$/i,'')+ext,content});
+
+      metaEl.textContent=`${result.points.length} pts`;
+      stEl.textContent='✓';stEl.className='fr-status ok';ok++;
+    }catch(e){
+      errEl.textContent=e.message;
+      stEl.textContent='✕';stEl.className='fr-status err';
+    }
+  }
+
+  document.getElementById('download-btn').disabled=outputs.length===0;
+  howtoG1000.classList.toggle('visible', goal==='g1000' && outputs.length>0);
+  howtoKML.classList.toggle('visible', goal==='kml' && outputs.length>0);
+}
+
+// ── Download ───────────────────────────────────────────────────────────────
+document.getElementById('download-btn').addEventListener('click',async()=>{
+  if(outputs.length===1){
+    const o=outputs[0];
+    const blob=new Blob([o.content],{type:'text/plain'});
+    const url=URL.createObjectURL(blob);
+    const a=document.createElement('a');a.href=url;a.download=o.filename;
+    document.body.appendChild(a);a.click();document.body.removeChild(a);
+    setTimeout(()=>URL.revokeObjectURL(url),1000);
+    return;
+  }
+  const zip=new JSZip();
+  for(const o of outputs) zip.file(o.filename,o.content);
+  const blob=await zip.generateAsync({type:'blob'});
+  const url=URL.createObjectURL(blob);
+  const a=document.createElement('a');a.href=url;a.download='foreflight_exports.zip';
+  document.body.appendChild(a);a.click();document.body.removeChild(a);
+  setTimeout(()=>URL.revokeObjectURL(url),1000);
+});
+
+// ── File input wiring ──────────────────────────────────────────────────────
+const dropZone=document.getElementById('drop-zone');
+const fileInput=document.getElementById('file-input');
+dropZone.addEventListener('click',()=>fileInput.click());
+fileInput.addEventListener('change',e=>{
+  if(e.target.files.length) processFiles([...e.target.files]);
+});
+['dragover','dragleave','drop'].forEach(evt=>{
+  dropZone.addEventListener(evt,e=>{
+    e.preventDefault();e.stopPropagation();
+    dropZone.classList.toggle('dragover',evt==='dragover');
+  });
+});
+dropZone.addEventListener('drop',e=>{
+  if(e.dataTransfer.files.length) processFiles([...e.dataTransfer.files]);
+});
+</script>
+</body>
+</html>
