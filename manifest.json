@@ -1,6 +1,6 @@
 {
-  "name": "Foreflight Track Converter",
-  "short_name": "Track Converter",
+  "name": "FF Track Converter",
+  "short_name": "FF Track",
   "description": "Convert KML or CSV flight exports into ForeFlight-ready Track Logs or Custom Maps.",
   "start_url": "./index.html",
   "scope": "./",
