@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Flight Track Converter</title>
+<title>Foreflight Track Converter</title>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
@@ -20,76 +20,42 @@
     background:var(--bg);color:var(--ink);
     -webkit-font-smoothing:antialiased;
   }
-  main{
-    max-width:740px;
-    width:100%;
-    margin:0 auto;
-    padding:64px 32px 80px;
-  }
+  main{max-width:560px;width:100%;margin:0 auto;padding:64px 24px 80px;}
 
-  h1{
-    font-size:30px;
-    font-weight:700;
-    letter-spacing:-0.025em;
-    line-height:1.12;
-    margin-bottom:8px;
-  }
-  .subtitle{
-    max-width:680px;
-    font-size:16px;
-    color:var(--muted);
-    margin-bottom:42px;
-    line-height:1.55;
-    letter-spacing:-0.005em;
-  }
+  h1{font-size:22px;font-weight:700;letter-spacing:-0.01em;margin-bottom:6px;}
+  .subtitle{font-size:14px;color:var(--muted);margin-bottom:40px;line-height:1.5;}
 
   /* Toggle */
   .goal-cards{
-    display:grid;
-    grid-template-columns:1fr 1fr;
-    gap:14px;
-    margin-bottom:14px;
+    display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:32px;
   }
   .goal-card{
-    background:var(--card);
-    border:1.5px solid var(--line);
-    border-radius:12px;
-    padding:18px 20px;
-    cursor:pointer;
-    transition:border-color 0.15s ease, background 0.15s ease;
+    background:var(--card);border:1.5px solid var(--line);border-radius:10px;
+    padding:14px 16px;cursor:pointer;transition:all 0.15s ease;
   }
-  .goal-card:hover{border-color:#cfcfcf;}
   .goal-card.active{border-color:var(--accent);background:var(--accent-light);}
-  .goal-card.active:hover{border-color:var(--accent);}
   .goal-card input{display:none;}
-  .goal-title{font-size:16px;font-weight:700;margin-bottom:7px;letter-spacing:-0.015em;}
+  .goal-title{font-size:14px;font-weight:700;margin-bottom:4px;}
   .goal-card.active .goal-title{color:var(--accent);}
-  .goal-desc{font-size:13px;color:var(--muted);line-height:1.52;}
-  .mode-helper{
-    max-width:680px;
-    font-size:13px;
-    color:var(--muted);
-    line-height:1.55;
-    margin:0 2px 30px;
-  }
+  .goal-desc{font-size:12px;color:var(--muted);line-height:1.5;}
+  .mode-helper{font-size:12px;color:var(--muted);line-height:1.6;margin:-16px 2px 28px;}
   .mode-helper b{color:var(--ink);font-weight:600;}
+
+  @media(max-width:480px){
+    .goal-cards{grid-template-columns:1fr;}
+  }
 
   /* Drop zone */
   .drop-zone{
     display:block;
-    border:1.5px dashed var(--line);
-    border-radius:14px;
-    padding:44px 24px;
-    text-align:center;
-    cursor:pointer;
-    transition:all 0.15s ease;
-    background:var(--card);
-    margin-bottom:26px;
-    width:100%;
+    border:1.5px dashed var(--line);border-radius:12px;
+    padding:40px 20px;text-align:center;cursor:pointer;
+    transition:all 0.15s ease;background:var(--card);
+    margin-bottom:24px;width:100%;
   }
   .drop-zone:hover,.drop-zone.dragover{border-color:var(--accent);background:var(--accent-light);}
-  .drop-zone p{font-size:16px;font-weight:700;margin-bottom:6px;letter-spacing:-0.01em;word-wrap:break-word;}
-  .drop-zone span{font-size:13px;color:var(--muted);word-wrap:break-word;}
+  .drop-zone p{font-size:14px;font-weight:600;margin-bottom:4px;word-wrap:break-word;}
+  .drop-zone span{font-size:12px;color:var(--muted);word-wrap:break-word;}
 
   /* Results */
   .file-list{display:flex;flex-direction:column;gap:6px;margin-bottom:20px;}
@@ -108,9 +74,9 @@
 
   /* Download */
   .download-btn{
-    width:100%;padding:14px;border:none;border-radius:9px;
+    width:100%;padding:13px;border:none;border-radius:8px;
     background:var(--accent);color:#fff;font-family:'Inter',sans-serif;
-    font-size:15px;font-weight:700;cursor:pointer;
+    font-size:14px;font-weight:600;cursor:pointer;
     transition:opacity 0.15s ease;
   }
   .download-btn:disabled{opacity:0.3;cursor:not-allowed;}
@@ -124,24 +90,18 @@
   .howto.visible{display:block;}
   .howto b{color:var(--ink);font-weight:600;}
   .howto ol{margin-left:18px;margin-top:6px;}
+  .note{
+    margin-top:14px;
+    padding:12px 14px;
+    border:1px solid var(--line);
+    border-radius:9px;
+    background:var(--card);
+    font-size:12px;
+    line-height:1.6;
+  }
 
   @media(max-width:480px){
-    main{max-width:560px;padding:40px 16px 60px;}
-    h1{font-size:22px;letter-spacing:-0.01em;line-height:1.18;margin-bottom:6px;}
-    .subtitle{font-size:14px;margin-bottom:40px;line-height:1.5;}
-    .goal-cards{grid-template-columns:1fr;gap:10px;margin-bottom:32px;}
-    .goal-card{min-height:0;border-width:1.5px;border-radius:10px;padding:14px 16px;}
-    .goal-card:hover{transform:none;}
-    .goal-title{font-size:14px;margin-bottom:4px;}
-    .goal-desc{font-size:12px;line-height:1.5;}
-    .mode-helper{font-size:12px;line-height:1.6;margin:-16px 2px 28px;}
-    .drop-zone{border-width:1.5px;border-radius:12px;padding:40px 20px;margin-bottom:24px;}
-    .drop-zone p{font-size:14px;font-weight:600;margin-bottom:4px;letter-spacing:0;}
-    .drop-zone span{font-size:12px;}
-    .file-list{gap:6px;margin-bottom:20px;}
-    .file-row{gap:10px;padding:11px 14px;border-radius:8px;font-size:13px;}
-    .download-btn{padding:13px;border-radius:8px;font-size:14px;font-weight:600;}
-    .howto{margin-top:24px;font-size:13px;}
+    main{padding:40px 16px 60px;}
   }
 </style>
 </head>
@@ -182,6 +142,7 @@
       <li>Send the file to your device (AirDrop, email, Files)</li>
       <li>ForeFlight → More → Track Logs → Import → From G1000 (CSV File)</li>
     </ol>
+    <p class="note"><b>Note:</b> Track Log CSVs are generated as synthetic Garmin G1000 logs. ForeFlight will display the imported track as G1000; this is an app limitation and cannot be changed in the file. After importing, you can edit the log in ForeFlight to add or correct the aircraft tail number.</p>
   </div>
   <div class="howto" id="howto-kml">
     <b>To import:</b>
@@ -501,7 +462,7 @@ async function processFiles(files){
       else{content=toG1000CSV(result.points);ext='_G1000.csv';}
       outputs.push({filename:file.name.replace(/\.(kml|csv|txt)$/i,'')+ext,content});
 
-      metaEl.textContent=`${result.points.length} pts`;
+      metaEl.textContent=`${result.points.length} data points`;
       stEl.textContent='✓';stEl.className='fr-status ok';ok++;
     }catch(e){
       errEl.textContent=e.message;
