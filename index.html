@@ -21,83 +21,82 @@
     -webkit-font-smoothing:antialiased;
   }
   main{
-    max-width:780px;
+    max-width:740px;
     width:100%;
     margin:0 auto;
-    padding:76px 32px 88px;
+    padding:64px 32px 80px;
   }
 
   h1{
-    font-size:clamp(34px,4vw,44px);
+    font-size:30px;
     font-weight:700;
-    letter-spacing:-0.035em;
-    line-height:1.05;
-    margin-bottom:14px;
+    letter-spacing:-0.025em;
+    line-height:1.12;
+    margin-bottom:8px;
   }
   .subtitle{
-    max-width:720px;
-    font-size:19px;
+    max-width:680px;
+    font-size:16px;
     color:var(--muted);
-    margin-bottom:54px;
-    line-height:1.5;
-    letter-spacing:-0.01em;
+    margin-bottom:42px;
+    line-height:1.55;
+    letter-spacing:-0.005em;
   }
 
   /* Toggle */
   .goal-cards{
     display:grid;
     grid-template-columns:1fr 1fr;
-    gap:18px;
-    margin-bottom:18px;
+    gap:14px;
+    margin-bottom:14px;
   }
   .goal-card{
-    min-height:176px;
     background:var(--card);
-    border:2px solid var(--line);
-    border-radius:16px;
-    padding:26px 28px;
+    border:1.5px solid var(--line);
+    border-radius:12px;
+    padding:18px 20px;
     cursor:pointer;
-    transition:all 0.15s ease;
+    transition:border-color 0.15s ease, background 0.15s ease;
   }
-  .goal-card:hover{border-color:#cfcfcf;transform:translateY(-1px);}
+  .goal-card:hover{border-color:#cfcfcf;}
   .goal-card.active{border-color:var(--accent);background:var(--accent-light);}
   .goal-card.active:hover{border-color:var(--accent);}
   .goal-card input{display:none;}
-  .goal-title{font-size:21px;font-weight:700;margin-bottom:12px;letter-spacing:-0.02em;}
+  .goal-title{font-size:16px;font-weight:700;margin-bottom:7px;letter-spacing:-0.015em;}
   .goal-card.active .goal-title{color:var(--accent);}
-  .goal-desc{font-size:16px;color:var(--muted);line-height:1.52;letter-spacing:-0.01em;}
+  .goal-desc{font-size:13px;color:var(--muted);line-height:1.52;}
   .mode-helper{
-    max-width:720px;
-    font-size:14px;
+    max-width:680px;
+    font-size:13px;
     color:var(--muted);
-    line-height:1.6;
-    margin:0 2px 34px;
+    line-height:1.55;
+    margin:0 2px 30px;
   }
   .mode-helper b{color:var(--ink);font-weight:600;}
 
   /* Drop zone */
   .drop-zone{
     display:block;
-    border:2px dashed var(--line);
-    border-radius:18px;
-    padding:58px 28px;
+    border:1.5px dashed var(--line);
+    border-radius:14px;
+    padding:44px 24px;
     text-align:center;
     cursor:pointer;
     transition:all 0.15s ease;
     background:var(--card);
-    margin-bottom:32px;
+    margin-bottom:26px;
     width:100%;
   }
   .drop-zone:hover,.drop-zone.dragover{border-color:var(--accent);background:var(--accent-light);}
-  .drop-zone p{font-size:20px;font-weight:700;margin-bottom:10px;letter-spacing:-0.02em;word-wrap:break-word;}
-  .drop-zone span{font-size:16px;color:var(--muted);word-wrap:break-word;}
+  .drop-zone p{font-size:16px;font-weight:700;margin-bottom:6px;letter-spacing:-0.01em;word-wrap:break-word;}
+  .drop-zone span{font-size:13px;color:var(--muted);word-wrap:break-word;}
 
   /* Results */
-  .file-list{display:flex;flex-direction:column;gap:8px;margin-bottom:24px;}
+  .file-list{display:flex;flex-direction:column;gap:6px;margin-bottom:20px;}
   .file-row{
-    display:flex;align-items:center;gap:12px;padding:14px 16px;
-    background:var(--card);border:1px solid var(--line);border-radius:10px;
-    font-size:14px;flex-wrap:wrap;
+    display:flex;align-items:center;gap:10px;padding:11px 14px;
+    background:var(--card);border:1px solid var(--line);border-radius:8px;
+    font-size:13px;flex-wrap:wrap;
   }
   .fr-name{flex:1 1 140px;font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;min-width:100px;}
   .fr-meta{font-size:12px;color:var(--muted);flex-shrink:0;white-space:nowrap;}
@@ -109,9 +108,9 @@
 
   /* Download */
   .download-btn{
-    width:100%;padding:18px;border:none;border-radius:12px;
+    width:100%;padding:14px;border:none;border-radius:9px;
     background:var(--accent);color:#fff;font-family:'Inter',sans-serif;
-    font-size:18px;font-weight:700;cursor:pointer;
+    font-size:15px;font-weight:700;cursor:pointer;
     transition:opacity 0.15s ease;
   }
   .download-btn:disabled{opacity:0.3;cursor:not-allowed;}
@@ -119,7 +118,7 @@
 
   /* How-to */
   .howto{
-    margin-top:28px;font-size:14px;color:var(--muted);line-height:1.7;
+    margin-top:24px;font-size:13px;color:var(--muted);line-height:1.7;
     display:none;
   }
   .howto.visible{display:block;}
@@ -149,7 +148,7 @@
 <body>
 
 <main>
-  <h1>ForeFlight Track Converter.</h1>
+  <h1>Foreflight Track Converter</h1>
   <p class="subtitle">Convert KML or CSV flight exports from FlightRadar24, instructors, or other pilots into ForeFlight-ready Track Logs or Custom Maps.</p>
 
   <div class="goal-cards">
