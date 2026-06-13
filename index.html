@@ -26,19 +26,22 @@
   .subtitle{font-size:14px;color:var(--muted);margin-bottom:40px;line-height:1.5;}
 
   /* Toggle */
-  .toggle{
-    display:flex;background:var(--card);border:1px solid var(--line);
-    border-radius:10px;padding:4px;margin-bottom:28px;
+  .goal-cards{
+    display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:32px;
   }
-  .toggle label{
-    flex:1;text-align:center;padding:10px 12px;border-radius:7px;
-    font-size:13px;font-weight:600;color:var(--muted);cursor:pointer;
-    transition:all 0.15s ease;
+  .goal-card{
+    background:var(--card);border:1.5px solid var(--line);border-radius:10px;
+    padding:14px 16px;cursor:pointer;transition:all 0.15s ease;
   }
-  .toggle label.active{background:var(--accent);color:#fff;}
-  .toggle input{display:none;}
-  .toggle-hint{font-size:12px;color:var(--muted);margin-bottom:32px;line-height:1.5;}
-  .toggle-hint b{color:var(--ink);}
+  .goal-card.active{border-color:var(--accent);background:var(--accent-light);}
+  .goal-card input{display:none;}
+  .goal-title{font-size:14px;font-weight:700;margin-bottom:4px;}
+  .goal-card.active .goal-title{color:var(--accent);}
+  .goal-desc{font-size:12px;color:var(--muted);line-height:1.5;}
+
+  @media(max-width:480px){
+    .goal-cards{grid-template-columns:1fr;}
+  }
 
   /* Drop zone */
   .drop-zone{
@@ -94,22 +97,21 @@
 <body>
 
 <main>
-  <h1>Flight Track Converter</h1>
-  <p class="subtitle">Convert ForeFlight or FlightRadar24 track files into a format ForeFlight can import.</p>
+  <h1>Every flight, ready for ForeFlight.</h1>
+  <p class="subtitle">Convert KML or CSV flight exports from FlightRadar24 or other pilots into ForeFlight-ready Track Logs or Custom Maps.</p>
 
-  <div class="toggle">
-    <label class="active" id="card-g1000">
+  <div class="goal-cards">
+    <label class="goal-card active" id="card-g1000">
       <input type="radio" name="goal" value="g1000" checked>
-      Track Log
+      <div class="goal-title">Track Log</div>
+      <div class="goal-desc">Create a ForeFlight-compatible CSV for your logbook — useful when you only have a KML or non-ForeFlight export.</div>
     </label>
-    <label id="card-kml">
+    <label class="goal-card" id="card-kml">
       <input type="radio" name="goal" value="kml">
-      Custom Map
+      <div class="goal-title">Custom Map</div>
+      <div class="goal-desc">Create a ForeFlight-compatible KML overlay to view your route on charts, airport diagrams, and airspace.</div>
     </label>
   </div>
-  <p class="toggle-hint" id="toggle-hint">
-    Outputs a <b>G1000 CSV</b> — for ForeFlight's flight logbook (More → Track Logs → Import).
-  </p>
 
   <div class="drop-zone" id="drop-zone">
     <p>Drop files here, or click to browse</p>
@@ -365,7 +367,6 @@ const cardG1000=document.getElementById('card-g1000');
 const cardKML=document.getElementById('card-kml');
 const howtoG1000=document.getElementById('howto-g1000');
 const howtoKML=document.getElementById('howto-kml');
-const toggleHint=document.getElementById('toggle-hint');
 
 function currentGoal(){ return document.querySelector('input[name="goal"]:checked').value; }
 
@@ -373,9 +374,6 @@ function updateToggle(){
   const goal=currentGoal();
   cardG1000.classList.toggle('active',goal==='g1000');
   cardKML.classList.toggle('active',goal==='kml');
-  toggleHint.innerHTML = goal==='kml'
-    ? 'Outputs an <b>FF Custom Map KML</b> — a clean route overlay (More → Maps → Custom Content).'
-    : 'Outputs a <b>G1000 CSV</b> — for ForeFlight\u2019s flight logbook (More → Track Logs → Import).';
   if(lastFiles.length) processFiles(lastFiles);
 }
 [cardG1000,cardKML].forEach(card=>{
