@@ -340,16 +340,27 @@ function toG1000CSV(points){
 
 function toCleanKML(points,tailNumber){
   const wc=points.map(p=>`                <when>${p[5]}</when>\n                <gx:coord>${p[1].toFixed(6)} ${p[0].toFixed(6)} ${(p[2]/3.28084).toFixed(1)}</gx:coord>`).join('\n                \n');
-  const sv=points.map(p=>`                    <gx:value>${Math.max(0,p[3]).toFixed(2)}</gx:value>`).join('\n                    \n');
-  const cv=points.map(p=>`                    <gx:value>${p[4].toFixed(2)}</gx:value>`).join('\n                    \n');
+  const arr=v=>v.map(x=>`                    <gx:value>${x}</gx:value>`).join('\n                    \n');
+  const zero=arr(points.map(()=>'0.00'));                       // acc_horiz / acc_vert / bank / pitch — not in source
+  const courseA=arr(points.map(p=>p[4].toFixed(2)));
+  const speedA=arr(points.map(p=>Math.max(0,p[3]).toFixed(2)));
+  const altA=arr(points.map(p=>p[2].toFixed(2)));               // feet, matching native export
   const first=points[0];
   return`<?xml version="1.0" encoding="UTF-8"?>
 <kml xmlns="http://www.opengis.net/kml/2.2" xmlns:gx="http://www.google.com/kml/ext/2.2">
     <Document>
-        <open>1</open><visibility>1</visibility>
+        <open>1</open>
+        <visibility>1</visibility>
+
         <Style id="trackStyle">
             <LineStyle><color>ffDB9034</color><width>4</width></LineStyle>
             <PolyStyle><color>80DB9034</color></PolyStyle>
+        </Style>
+        <Style id="pathStyle">
+            <LineStyle><color>f8000080</color><width>8</width></LineStyle>
+        </Style>
+        <Style id="positionReportPlacemark">
+            <IconStyle><Icon><href>http://maps.google.com/mapfiles/kml/paddle/grn-blank.png</href></Icon></IconStyle>
         </Style>
         <Placemark>
             <name></name>
@@ -357,27 +368,49 @@ function toCleanKML(points,tailNumber){
             <gx:Track>
                 <altitudeMode>absolute</altitudeMode>
                 <extrude>1</extrude>
+                <altitudeMode>absolute</altitudeMode>
                 <gx:interpolate>1</gx:interpolate>
                 
 ${wc}
-                
-                <ExtendedData><SchemaData>
-                    <gx:SimpleArrayData name="speed_kts">
-                    ${sv}
-                    </gx:SimpleArrayData>
-                    <gx:SimpleArrayData name="course">
-                    ${cv}
-                    </gx:SimpleArrayData>
-                </SchemaData></ExtendedData>
             </gx:Track>
         </Placemark>
         <Placemark>
             <name>Start</name>
-            <Point><coordinates>${first[1].toFixed(6)},${first[0].toFixed(6)},${(first[2]/3.28084).toFixed(1)}</coordinates></Point>
+            <Point>
+                <coordinates>${first[1].toFixed(6)},${first[0].toFixed(6)},${(first[2]/3.28084).toFixed(1)}</coordinates>
+            </Point>
         </Placemark>
         <ExtendedData>
+            <SchemaData>
+                <gx:SimpleArrayData name="acc_horiz">
+                    ${zero}
+                </gx:SimpleArrayData>
+                <gx:SimpleArrayData name="acc_vert">
+                    ${zero}
+                </gx:SimpleArrayData>
+                <gx:SimpleArrayData name="course">
+                    ${courseA}
+                </gx:SimpleArrayData>
+                <gx:SimpleArrayData name="speed_kts">
+                    ${speedA}
+                </gx:SimpleArrayData>
+                <gx:SimpleArrayData name="altitude">
+                    ${altA}
+                </gx:SimpleArrayData>
+                <gx:SimpleArrayData name="bank">
+                    ${zero}
+                </gx:SimpleArrayData>
+                <gx:SimpleArrayData name="pitch">
+                    ${zero}
+                </gx:SimpleArrayData>
+            </SchemaData>
             <Data name="source"><displayName>Source</displayName><value>Flight Track Converter</value></Data>
+            <Data name="GPSModelName"><value></value></Data>
+            <Data name="flightTitle"><value></value></Data>
+            <Data name="pilotName"><value></value></Data>
             <Data name="tailNumber"><value>${tailNumber||''}</value></Data>
+            <Data name="pilotNotes"><value></value></Data>
+            <Data name="routeWaypoints"><displayName>Route</displayName><value></value></Data>
         </ExtendedData>
     </Document>
 </kml>`;
@@ -489,7 +522,8 @@ async function processFiles(files){
 downloadBtn.addEventListener('click',async()=>{
   if(outputs.length===1){
     const o=outputs[0];
-    const blob=new Blob([o.content],{type:'text/plain'});
+    const mime=o.filename.endsWith('.kml')?'application/vnd.google-earth.kml+xml':'text/csv';
+    const blob=new Blob([o.content],{type:mime});
     const url=URL.createObjectURL(blob);
     const a=document.createElement('a');a.href=url;a.download=o.filename;
     document.body.appendChild(a);a.click();document.body.removeChild(a);
