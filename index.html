@@ -79,6 +79,24 @@
   .fr-status.err{color:var(--red);}
   .fr-status.pending{color:var(--muted);}
   .fr-error{font-size:12px;color:var(--red);flex-basis:100%;}
+  .fr-remove{
+    flex-shrink:0;margin-left:2px;width:24px;height:24px;line-height:1;
+    border:none;border-radius:6px;background:transparent;color:var(--muted);
+    font-size:14px;cursor:pointer;transition:all 0.15s ease;
+  }
+  .fr-remove:hover{background:#fde8e8;color:var(--red);}
+
+  /* List header (clear all) */
+  .list-header{
+    display:flex;align-items:center;justify-content:space-between;
+    margin-bottom:8px;padding:0 2px;
+  }
+  .list-header #list-count{font-size:12px;color:var(--muted);font-weight:600;}
+  .clear-all{
+    border:none;background:transparent;color:var(--accent);
+    font-family:'Inter',sans-serif;font-size:13px;font-weight:600;cursor:pointer;padding:4px 2px;
+  }
+  .clear-all:hover{text-decoration:underline;}
 
   /* Download */
   .download-btn{
@@ -152,6 +170,10 @@
 <input type="file" id="file-input"
        accept=".kml,.csv,.txt,application/vnd.google-earth.kml+xml,text/csv,text/plain,*/*"
        multiple style="display:none;">
+  <div class="list-header" id="list-header" hidden>
+    <span id="list-count"></span>
+    <button class="clear-all" id="clear-all" type="button">Clear all</button>
+  </div>
   <div class="file-list" id="file-list"></div>
 
   <div class="action-row">
@@ -432,7 +454,8 @@ ${wc}
 
 // ── UI state ───────────────────────────────────────────────────────────────
 let outputs=[];
-let lastFiles=[];
+let selectedFiles=[];
+let renderToken=0;
 const cardG1000=document.getElementById('card-g1000');
 const cardKML=document.getElementById('card-kml');
 const howtoG1000=document.getElementById('howto-g1000');
@@ -479,7 +502,7 @@ function updateToggle(){
   cardG1000.classList.toggle('active',goal==='g1000');
   cardKML.classList.toggle('active',goal==='kml');
   updateModeCopy();
-  if(lastFiles.length) processFiles(lastFiles);
+  render();
 }
 [cardG1000,cardKML].forEach(card=>{
   card.addEventListener('click',()=>{
@@ -489,56 +512,78 @@ function updateToggle(){
 });
 updateModeCopy();
 
-// ── Batch processing ───────────────────────────────────────────────────────
-function addRow(id,name){
-  const row=document.createElement('div');
-  row.className='file-row';
-  row.id=`row-${id}`;
-  row.innerHTML=`
-    <span class="fr-name">${name}</span>
-    <span class="fr-meta" id="meta-${id}"></span>
-    <span class="fr-status pending" id="st-${id}">…</span>
-    <span class="fr-error" id="err-${id}"></span>`;
-  document.getElementById('file-list').appendChild(row);
+// ── File list + conversion ──────────────────────────────────────────────────
+function fileKey(f){ return f.name+'::'+f.size; }
+
+function addFiles(files){
+  for(const f of files){
+    if(!selectedFiles.some(s=>fileKey(s)===fileKey(f))) selectedFiles.push(f); // skip exact duplicates
+  }
+  render();
 }
+function removeFile(idx){ selectedFiles.splice(idx,1); render(); }
+function clearFiles(){ selectedFiles=[]; render(); }
 
 function readText(file){
   return new Promise((res,rej)=>{const r=new FileReader();r.onload=e=>res(e.target.result);r.onerror=rej;r.readAsText(file);});
 }
 
-async function processFiles(files){
-  lastFiles=files;
-  outputs=[];
-  document.getElementById('file-list').innerHTML='';
-
+async function render(){
+  const token=++renderToken;                 // any earlier in-flight render becomes stale
   const goal=currentGoal();
-  let ok=0;
+  const listHeader=document.getElementById('list-header');
+  const listCount=document.getElementById('list-count');
+  const list=document.getElementById('file-list');
 
-  for(let i=0;i<files.length;i++){
-    const file=files[i];
-    const id=`f${i}`;
-    addRow(id,file.name);
-    const stEl=document.getElementById(`st-${id}`);
-    const metaEl=document.getElementById(`meta-${id}`);
-    const errEl=document.getElementById(`err-${id}`);
+  outputs=[];
+  list.innerHTML='';
+  listHeader.hidden=selectedFiles.length===0;
+  listCount.textContent=selectedFiles.length===1?'1 file':`${selectedFiles.length} files`;
+  primaryBtn.disabled=true; zipBtn.disabled=true;
+
+  const usedNames=new Set();
+  for(let i=0;i<selectedFiles.length;i++){
+    const file=selectedFiles[i];
+    const row=document.createElement('div');
+    row.className='file-row';
+    row.innerHTML=`
+      <span class="fr-name">${file.name}</span>
+      <span class="fr-meta"></span>
+      <span class="fr-status pending">…</span>
+      <button class="fr-remove" type="button" aria-label="Remove ${file.name}">✕</button>`;
+    row.querySelector('.fr-remove').addEventListener('click',()=>removeFile(i));
+    list.appendChild(row);
+    const metaEl=row.querySelector('.fr-meta');
+    const stEl=row.querySelector('.fr-status');
 
     try{
       const text=await readText(file);
+      if(token!==renderToken) return;        // a newer render started → abandon this pass
       const result=parseAnyFile(file,text);
 
       let content,ext;
       if(goal==='kml'){content=toCleanKML(result.points,result.tailNumber);ext='_track.kml';}
       else{content=toG1000CSV(result.points);ext='_G1000.csv';}
-      outputs.push({filename:file.name.replace(/\.(kml|csv|txt)$/i,'')+ext,content});
+
+      // guarantee unique output filenames (iOS share rejects duplicate names)
+      let name=file.name.replace(/\.(kml|csv|txt)$/i,'')+ext;
+      if(usedNames.has(name)){const dot=name.lastIndexOf('.');let n=2;
+        while(usedNames.has(`${name.slice(0,dot)}-${n}${name.slice(dot)}`))n++;
+        name=`${name.slice(0,dot)}-${n}${name.slice(dot)}`;}
+      usedNames.add(name);
+      outputs.push({filename:name,content});
 
       metaEl.textContent=`${result.points.length} data points`;
-      stEl.textContent='✓';stEl.className='fr-status ok';ok++;
+      stEl.textContent='✓';stEl.className='fr-status ok';
     }catch(e){
-      errEl.textContent=e.message;
+      if(token!==renderToken) return;
+      const errEl=document.createElement('span');
+      errEl.className='fr-error';errEl.textContent=e.message;
+      row.appendChild(errEl);
       stEl.textContent='✕';stEl.className='fr-status err';
     }
   }
-
+  if(token!==renderToken) return;
   primaryBtn.disabled=outputs.length===0;
   zipBtn.disabled=outputs.length===0;
   updateModeCopy();
@@ -587,9 +632,11 @@ zipBtn.addEventListener('click',downloadOutputs);
 // ── File input wiring ──────────────────────────────────────────────────────
 const dropZone=document.getElementById('drop-zone');
 const fileInput=document.getElementById('file-input');
+document.getElementById('clear-all').addEventListener('click',clearFiles);
 dropZone.addEventListener('click',()=>fileInput.click());
 fileInput.addEventListener('change',e=>{
-  if(e.target.files.length) processFiles([...e.target.files]);
+  if(e.target.files.length) addFiles([...e.target.files]);
+  fileInput.value='';                        // let the same file be picked again later
 });
 ['dragover','dragleave','drop'].forEach(evt=>{
   dropZone.addEventListener(evt,e=>{
@@ -598,7 +645,7 @@ fileInput.addEventListener('change',e=>{
   });
 });
 dropZone.addEventListener('drop',e=>{
-  if(e.dataTransfer.files.length) processFiles([...e.dataTransfer.files]);
+  if(e.dataTransfer.files.length) addFiles([...e.dataTransfer.files]);
 });
 </script>
 </body>
