@@ -138,8 +138,9 @@
     <p id="drop-title">Drop KML or CSV flight exports here</p>
     <span id="drop-subtitle">Creates a ForeFlight Track Log CSV</span>
   </div>
-  <input type="file" id="file-input" accept=".kml,.csv,.txt" multiple style="display:none;">
-
+<input type="file" id="file-input"
+       accept=".kml,.csv,.txt,application/vnd.google-earth.kml+xml,text/csv,text/plain,*/*"
+       multiple style="display:none;">
   <div class="file-list" id="file-list"></div>
 
   <button class="download-btn" id="download-btn" disabled>Upload files to continue</button>
