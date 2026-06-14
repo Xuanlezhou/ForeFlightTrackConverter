@@ -90,6 +90,17 @@
   .download-btn:disabled{opacity:0.3;cursor:not-allowed;}
   .download-btn:not(:disabled):hover{opacity:0.9;}
 
+  /* Action row: share + zip */
+  .action-row{display:flex;gap:8px;}
+  .action-row .download-btn{flex:1;width:auto;}
+  .zip-btn{
+    flex:0 0 auto;padding:13px 16px;border:1.5px solid var(--line);border-radius:8px;
+    background:var(--card);color:var(--ink);font-family:'Inter',sans-serif;
+    font-size:14px;font-weight:600;cursor:pointer;transition:all 0.15s ease;
+  }
+  .zip-btn:disabled{opacity:0.3;cursor:not-allowed;}
+  .zip-btn:not(:disabled):hover{border-color:var(--accent);color:var(--accent);}
+
   /* How-to */
   .howto{
     margin-top:24px;font-size:13px;color:var(--muted);line-height:1.7;
@@ -143,7 +154,10 @@
        multiple style="display:none;">
   <div class="file-list" id="file-list"></div>
 
-  <button class="download-btn" id="download-btn" disabled>Upload files to continue</button>
+  <div class="action-row">
+    <button class="download-btn" id="primary-btn" disabled>Upload files to continue</button>
+    <button class="zip-btn" id="zip-btn" disabled hidden>Zip</button>
+  </div>
 
   <div class="howto" id="howto-g1000">
     <b>To import:</b>
@@ -425,7 +439,15 @@ const howtoG1000=document.getElementById('howto-g1000');
 const howtoKML=document.getElementById('howto-kml');
 const dropTitle=document.getElementById('drop-title');
 const dropSubtitle=document.getElementById('drop-subtitle');
-const downloadBtn=document.getElementById('download-btn');
+const primaryBtn=document.getElementById('primary-btn');
+const zipBtn=document.getElementById('zip-btn');
+
+// Can this device hand real files to another app via the share sheet?
+const SHARE_FILES_SUPPORTED=(()=>{
+  try{return !!(navigator.canShare&&navigator.canShare({files:[new File(['t'],'t.kml',{type:'application/vnd.google-earth.kml+xml'})]}));}
+  catch(_){return false;}
+})();
+zipBtn.hidden=!SHARE_FILES_SUPPORTED; // no share sheet → primary button just downloads, zip option not needed
 
 function currentGoal(){ return document.querySelector('input[name="goal"]:checked').value; }
 
@@ -441,9 +463,14 @@ function updateModeCopy(){
   }
 
   if(outputs.length){
-    downloadBtn.textContent=goal==='g1000' ? 'Download Track Log CSV' : 'Download Custom Map KML';
+    if(SHARE_FILES_SUPPORTED){
+      primaryBtn.textContent = goal==='kml' ? 'Share to ForeFlight' : ('Share file'+(outputs.length>1?'s':''));
+      zipBtn.textContent = outputs.length>1 ? 'Zip' : 'Save';
+    }else{
+      primaryBtn.textContent = goal==='g1000' ? 'Download Track Log CSV' : 'Download Custom Map KML';
+    }
   }else{
-    downloadBtn.textContent='Upload files to continue';
+    primaryBtn.textContent='Upload files to continue';
   }
 }
 
@@ -512,32 +539,50 @@ async function processFiles(files){
     }
   }
 
-  downloadBtn.disabled=outputs.length===0;
+  primaryBtn.disabled=outputs.length===0;
+  zipBtn.disabled=outputs.length===0;
   updateModeCopy();
   howtoG1000.classList.toggle('visible', goal==='g1000' && outputs.length>0);
   howtoKML.classList.toggle('visible', goal==='kml' && outputs.length>0);
 }
 
-// ── Download ───────────────────────────────────────────────────────────────
-downloadBtn.addEventListener('click',async()=>{
+// ── Share / Download ─────────────────────────────────────────────────────────
+function outputFiles(){
+  return outputs.map(o=>{
+    const mime=o.filename.endsWith('.kml')?'application/vnd.google-earth.kml+xml':'text/csv';
+    return new File([o.content],o.filename,{type:mime});
+  });
+}
+function triggerDownload(blob,name){
+  const url=URL.createObjectURL(blob);
+  const a=document.createElement('a');a.href=url;a.download=name;
+  document.body.appendChild(a);a.click();document.body.removeChild(a);
+  setTimeout(()=>URL.revokeObjectURL(url),1000);
+}
+async function downloadOutputs(){              // one file → that file; several → a .zip
+  if(!outputs.length) return;
   if(outputs.length===1){
     const o=outputs[0];
     const mime=o.filename.endsWith('.kml')?'application/vnd.google-earth.kml+xml':'text/csv';
-    const blob=new Blob([o.content],{type:mime});
-    const url=URL.createObjectURL(blob);
-    const a=document.createElement('a');a.href=url;a.download=o.filename;
-    document.body.appendChild(a);a.click();document.body.removeChild(a);
-    setTimeout(()=>URL.revokeObjectURL(url),1000);
+    triggerDownload(new Blob([o.content],{type:mime}),o.filename);
     return;
   }
   const zip=new JSZip();
   for(const o of outputs) zip.file(o.filename,o.content);
-  const blob=await zip.generateAsync({type:'blob'});
-  const url=URL.createObjectURL(blob);
-  const a=document.createElement('a');a.href=url;a.download='foreflight_exports.zip';
-  document.body.appendChild(a);a.click();document.body.removeChild(a);
-  setTimeout(()=>URL.revokeObjectURL(url),1000);
-});
+  triggerDownload(await zip.generateAsync({type:'blob'}),'foreflight_exports.zip');
+}
+async function shareOutputs(){                 // hands each file over separately (no zip)
+  if(!outputs.length) return;
+  const files=outputFiles();
+  if(navigator.canShare&&navigator.canShare({files})){
+    try{ await navigator.share({files}); return; }
+    catch(e){ if(e&&e.name==='AbortError') return; }   // cancelled → stop; any other error → fall back
+  }
+  downloadOutputs();
+}
+
+primaryBtn.addEventListener('click',()=>{ SHARE_FILES_SUPPORTED ? shareOutputs() : downloadOutputs(); });
+zipBtn.addEventListener('click',downloadOutputs);
 
 // ── File input wiring ──────────────────────────────────────────────────────
 const dropZone=document.getElementById('drop-zone');
